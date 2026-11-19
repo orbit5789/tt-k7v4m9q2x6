@@ -1,5 +1,5 @@
 const prefix = 'my-timetable:' + self.registration.scope + ':';
-const cacheName = prefix + 'v1';
+const cacheName = prefix + 'v2';
 const home = new URL('index.html', self.registration.scope).href;
 const files = [home, 'manifest.json', 'icon-192.png', 'icon-512.png']
   .map(path => new URL(path, self.registration.scope).href);

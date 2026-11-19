@@ -64,20 +64,43 @@ body{height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) e
 .act button{min-width:115px}
 #backup-status{margin:8px 0 0;color:var(--acc);font-size:13px}
 #backup-status:empty{display:none}
+.views{display:flex;gap:6px;padding:0 14px 10px}
+.views button[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);font-weight:700}
+.month{flex:1;min-height:0;overflow:auto}
+.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;padding:6px}
+.month-weekday{text-align:center;color:var(--mut);font-size:12px;padding:5px 0}
+.month-day{background:var(--bar);border:1px solid var(--line);border-radius:6px;min-height:65px;padding:4px 2px;text-align:left;display:flex;flex-direction:column;gap:3px;overflow:hidden;cursor:pointer}
+.month-day[aria-current="date"]{border-color:var(--acc)}
+.month-day span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.month-day strong{font-size:13px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body inert>
 <header><h1>내 시간표</h1><button class="ib" id="gear" aria-label="설정">⚙️</button></header>
-<div class="nav">
+<nav class="views" aria-label="보기 방식">
+  <button class="pill" id="day-view" aria-pressed="true">일별</button>
+  <button class="pill" id="month-view" aria-pressed="false">월간 달력</button>
+</nav>
+<div class="nav daily">
   <button class="ib" id="prev" aria-label="전날">‹</button>
   <div class="d" id="dl"></div>
   <button class="ib" id="next" aria-label="다음날">›</button>
   <button class="pill" id="tod">오늘</button>
 </div>
-<div id="wrap"><div id="grid"></div></div>
+<div id="wrap" class="daily"><div id="grid"></div></div>
+<section class="month" id="month" aria-label="월간 달력" hidden>
+  <div class="nav">
+    <button class="ib" id="month-prev" aria-label="이전 달">‹</button>
+    <div class="d" id="month-label" aria-live="polite"></div>
+    <button class="ib" id="month-next" aria-label="다음 달">›</button>
+    <button class="pill" id="month-today">이번 달</button>
+  </div>
+  <div class="month-grid" id="month-grid"></div>
+</section>
 <div id="toast" role="status"></div>
-<div class="hint">예) 오전 7시 러닝 · 오전 8시 러닝 끝 · 오늘 7시부터 9시까지 공부</div>
-<div class="bar">
+<div class="hint daily">예) 오전 7시 러닝 · 오전 8시 러닝 끝 · 오늘 7시부터 9시까지 공부</div>
+<div class="bar daily">
   <button id="undo" aria-label="되돌리기">↩</button>
   <input id="inp" placeholder="뭐 했는지 입력하세요" autocomplete="off">
   <button id="mic" aria-label="음성 입력">🎤</button>
@@ -192,7 +215,63 @@ function fmt(m){return p2(Math.floor(m/60)%24===0&&m>=1440?24:Math.floor(m/60))+
 function colorOf(t){var h=0;for(var i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))%360;return 'hsl('+h+',70%,82%)'}
 function toast(m){$('#toast').textContent=m;clearTimeout(toast.t);toast.t=setTimeout(function(){$('#toast').textContent=''},4000)}
 
+var visibleMonth=null;
+
+function monthStart(date, offset){
+  return new Date(date.getFullYear(),date.getMonth()+offset,1,12);
+}
+
+function showMonth(month){
+  visibleMonth=month;
+  document.querySelectorAll('.daily').forEach(function(element){element.hidden=Boolean(month)});
+  $('#month').hidden=!month;
+  $('#day-view').setAttribute('aria-pressed',String(!month));
+  $('#month-view').setAttribute('aria-pressed',String(Boolean(month)));
+  render();
+}
+
+function renderMonth(){
+  var year=visibleMonth.getFullYear(),month=visibleMonth.getMonth();
+  var today=key(new Date()),prefix=key(visibleMonth).slice(0,7);
+  var records=new Map();
+  E.filter(function(record){return record.d.slice(0,7)===prefix})
+    .sort(function(a,b){return a.s-b.s})
+    .forEach(function(record){
+      if(!records.has(record.d))records.set(record.d,[]);
+      records.get(record.d).push(record);
+    });
+  $('#month-label').textContent=year+'년 '+(month+1)+'월';
+  var html=['일','월','화','수','목','금','토'].map(function(day){
+    return '<div class="month-weekday">'+day+'</div>';
+  }).join('')+'<div aria-hidden="true"></div>'.repeat(visibleMonth.getDay());
+  var last=new Date(year,month+1,0).getDate();
+  for(var day=1;day<=last;day++){
+    var date=prefix+'-'+p2(day),items=records.get(date)||[];
+    html+='<button class="month-day" data-date="'+date+'" aria-label="'+(month+1)+'월 '+day+'일, 기록 '+items.length+'개"'+
+      (date===today?' aria-current="date"':'')+'><strong>'+day+'</strong>'+
+      items.slice(0,2).map(function(item){return '<span>'+esc(item.t)+'</span>'}).join('')+
+      (items.length>2?'<span>+'+(items.length-2)+'</span>':'')+'</button>';
+  }
+  $('#month-grid').innerHTML=html;
+}
+
+$('#day-view').onclick=function(){if(visibleMonth)showMonth(null)};
+$('#month-view').onclick=function(){if(!visibleMonth)showMonth(monthStart(toD(D),0))};
+$('#month-prev').onclick=function(){showMonth(monthStart(visibleMonth,-1))};
+$('#month-next').onclick=function(){showMonth(monthStart(visibleMonth,1))};
+$('#month-today').onclick=function(){showMonth(monthStart(new Date(),0))};
+$('#month-grid').onclick=function(event){
+  var day=event.target.closest('button[data-date]');
+  if(!day)return;
+  D=day.dataset.date;
+  showMonth(null);
+  $('#wrap').scrollTop=0;
+  $('#day-view').focus();
+};
+
 function render(){
+  if(visibleMonth){renderMonth();return}
+
   var days=['일','월','화','수','목','금','토'],d=toD(D);
   $('#dl').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
   var lo=S.sh*60,hi=S.eh*60,rows=(hi-lo)/S.u,h='';
@@ -352,7 +431,7 @@ async function start(){
   $('#wrap').scrollTop=Math.max(0,(nowMin()-S.sh*60)/S.u*RH-120);
   document.body.inert=false;
   if(storageError)toast('기기 저장 공간을 확인해 주세요. 기존 백업 파일이 있으면 보관해 주세요.');
-  setInterval(function(){if(!$('#sheet').classList.contains('show'))render()},60000);
+  setInterval(function(){if(!visibleMonth&&!$('#sheet').classList.contains('show'))render()},60000);
   if('serviceWorker' in navigator && window.isSecureContext){
     navigator.serviceWorker.register('./sw.js').catch(function(error){
       console.error('오프라인 준비 실패',error);
