@@ -64,8 +64,9 @@ body{height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) e
 .act button{min-width:115px}
 #backup-status{margin:8px 0 0;color:var(--acc);font-size:13px}
 #backup-status:empty{display:none}
-.views{display:flex;gap:6px;padding:0 14px 10px}
-.views button[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);font-weight:700}
+#dl{background:var(--bar);color:var(--fg);border:1px solid var(--line);border-radius:12px;min-height:40px;padding:6px 8px;cursor:pointer}
+#dl::after{content:" ▾";color:var(--acc)}
+.month-back{padding:8px 12px}
 .month{flex:1;min-height:0;overflow:auto}
 .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;padding:6px}
 .month-weekday{text-align:center;color:var(--mut);font-size:12px;padding:5px 0}
@@ -78,13 +79,9 @@ body{height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) e
 </head>
 <body inert>
 <header><h1>내 시간표</h1><button class="ib" id="gear" aria-label="설정">⚙️</button></header>
-<nav class="views" aria-label="보기 방식">
-  <button class="pill" id="day-view" aria-pressed="true">일별</button>
-  <button class="pill" id="month-view" aria-pressed="false">월간 달력</button>
-</nav>
 <div class="nav daily">
   <button class="ib" id="prev" aria-label="전날">‹</button>
-  <div class="d" id="dl"></div>
+  <button class="d" id="dl" type="button" aria-controls="month"></button>
   <button class="ib" id="next" aria-label="다음날">›</button>
   <button class="pill" id="tod">오늘</button>
 </div>
@@ -96,6 +93,7 @@ body{height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) e
     <button class="ib" id="month-next" aria-label="다음 달">›</button>
     <button class="pill" id="month-today">이번 달</button>
   </div>
+  <div class="month-back"><button class="pill" id="month-back">일별로 돌아가기</button></div>
   <div class="month-grid" id="month-grid"></div>
 </section>
 <div id="toast" role="status"></div>
@@ -225,8 +223,6 @@ function showMonth(month){
   visibleMonth=month;
   document.querySelectorAll('.daily').forEach(function(element){element.hidden=Boolean(month)});
   $('#month').hidden=!month;
-  $('#day-view').setAttribute('aria-pressed',String(!month));
-  $('#month-view').setAttribute('aria-pressed',String(Boolean(month)));
   render();
 }
 
@@ -255,8 +251,11 @@ function renderMonth(){
   $('#month-grid').innerHTML=html;
 }
 
-$('#day-view').onclick=function(){if(visibleMonth)showMonth(null)};
-$('#month-view').onclick=function(){if(!visibleMonth)showMonth(monthStart(toD(D),0))};
+$('#dl').onclick=function(){
+  showMonth(monthStart(toD(D),0));
+  $('#month-back').focus();
+};
+$('#month-back').onclick=function(){showMonth(null);$('#dl').focus()};
 $('#month-prev').onclick=function(){showMonth(monthStart(visibleMonth,-1))};
 $('#month-next').onclick=function(){showMonth(monthStart(visibleMonth,1))};
 $('#month-today').onclick=function(){showMonth(monthStart(new Date(),0))};
@@ -266,14 +265,16 @@ $('#month-grid').onclick=function(event){
   D=day.dataset.date;
   showMonth(null);
   $('#wrap').scrollTop=0;
-  $('#day-view').focus();
+  $('#dl').focus();
 };
 
 function render(){
   if(visibleMonth){renderMonth();return}
 
   var days=['일','월','화','수','목','금','토'],d=toD(D);
-  $('#dl').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
+  var dateButton=$('#dl');
+  dateButton.textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
+  dateButton.setAttribute('aria-label',dateButton.textContent+' 월간 달력 열기');
   var lo=S.sh*60,hi=S.eh*60,rows=(hi-lo)/S.u,h='';
   for(var i=0;i<rows;i++)h+='<div class="r"><span class="t">'+fmt(lo+i*S.u)+'</span></div>';
   h+='<div id="ev">';
