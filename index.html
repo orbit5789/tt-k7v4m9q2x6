@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>내 시간표</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<meta name="theme-color" content="#2454aa">
+<style>
+:root{--bg:#fff;--fg:#1d1d1f;--mut:#8a8a90;--line:#e3e3e6;--bar:#f4f4f6;--acc:#3b6fe0;--card:#fff;--now:#e5484d;
+box-sizing:border-box;background:var(--bg);color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--fg:#f2f2f4;--mut:#9a9aa2;--line:#2e2e34;--bar:#222226;--acc:#7a9cf0;--card:#222226}}
+:root[data-theme="dark"]{--bg:#17171a;--fg:#f2f2f4;--mut:#9a9aa2;--line:#2e2e34;--bar:#222226;--acc:#7a9cf0;--card:#222226}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px}
+header h1{font-size:20px;margin:0}
+.ib{background:none;border:0;font-size:22px;padding:6px 10px;cursor:pointer}
+.nav{display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+.nav .d{font-weight:600;min-width:140px;text-align:center}
+.pill{border:1px solid var(--line);background:var(--bar);border-radius:14px;padding:4px 10px;font-size:13px;cursor:pointer}
+#wrap{flex:1;overflow-y:auto;position:relative}
+#grid{position:relative;margin:6px 10px 12px 10px}
+.r{height:36px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start}
+.r:first-child{border-top:1px solid var(--line)}
+.t{width:52px;font-size:12px;color:var(--mut);padding:3px 0 0 2px}
+#ev{position:absolute;left:54px;right:0;top:0}
+.e{position:absolute;left:2px;right:2px;border-radius:6px;padding:3px 7px;font-size:13px;line-height:1.25;overflow:hidden;cursor:pointer;color:#1d1d1f;border:1px solid rgba(0,0,0,.12)}
+.e small{display:block;opacity:.7;font-size:11px}
+#nowl{position:absolute;left:44px;right:0;height:0;border-top:2px solid var(--now);z-index:3;pointer-events:none}
+#nowl:before{content:"";position:absolute;left:-2px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--now)}
+#toast{text-align:center;font-size:13px;color:var(--acc);min-height:20px;padding:4px 12px 0}
+.bar{display:flex;gap:6px;padding:6px 10px 10px;background:var(--bar);border-top:1px solid var(--line);align-items:center}
+.bar input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:10px 14px;font-size:15px}
+.bar button{border:0;border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer;background:var(--acc);color:#fff;flex:none}
+.bar #mic{background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.bar #mic.on{background:var(--now);color:#fff}
+.bar #undo{background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.hint{font-size:12px;color:var(--mut);text-align:center;padding:2px 12px 0}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;z-index:9}
+#sheet.show{display:flex}
+.card{background:var(--bg);width:100%;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));max-height:85%;overflow:auto}
+.card h2{margin:0 0 12px;font-size:17px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0}
+.row select,.row input{border:1px solid var(--line);background:var(--bar);border-radius:8px;padding:8px}
+.seg{display:flex;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--bar);border-radius:8px;padding:8px 12px;cursor:pointer}
+.seg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.act{display:flex;gap:8px;margin-top:16px}
+.act button{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bar);cursor:pointer;font-weight:600}
+.act .pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.act .del{color:var(--now)}
+.help{font-size:13px;color:var(--mut);line-height:1.6;margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+body{height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#wrap{min-height:0}
+.nav{flex-wrap:wrap}
+#sheet{padding-inline:env(safe-area-inset-left) env(safe-area-inset-right)}
+.card{max-height:min(85%,calc(100% - env(safe-area-inset-top) - 12px))}
+.row input{min-width:0}
+.act{flex-wrap:wrap}
+.act button{min-width:115px}
+#backup-status{margin:8px 0 0;color:var(--acc);font-size:13px}
+#backup-status:empty{display:none}
+</style>
+</head>
+<body inert>
+<header><h1>내 시간표</h1><button class="ib" id="gear" aria-label="설정">⚙️</button></header>
+<div class="nav">
+  <button class="ib" id="prev" aria-label="전날">‹</button>
+  <div class="d" id="dl"></div>
+  <button class="ib" id="next" aria-label="다음날">›</button>
+  <button class="pill" id="tod">오늘</button>
+</div>
+<div id="wrap"><div id="grid"></div></div>
+<div id="toast" role="status"></div>
+<div class="hint">예) 오전 7시 러닝 · 오전 8시 러닝 끝 · 오늘 7시부터 9시까지 공부</div>
+<div class="bar">
+  <button id="undo" aria-label="되돌리기">↩</button>
+  <input id="inp" placeholder="뭐 했는지 입력하세요" autocomplete="off">
+  <button id="mic" aria-label="음성 입력">🎤</button>
+  <button id="go" aria-label="입력">➤</button>
+</div>
+
+<div id="sheet"><div class="card" id="card"></div></div>
+
+<script>
+var S={sh:7,eh:24,u:30},E=[],D=key(new Date()),prevSnap=null,RH=36;
+var db, writeQueue=Promise.resolve(), restoring=false;
+
+function readLegacy(k,fallback){
+  try{return JSON.parse(localStorage.getItem(k)) ?? fallback}
+  catch{return fallback}
+}
+
+function requestPersistence(){
+  if(navigator.storage?.persist) navigator.storage.persist().catch(function(){});
+}
+
+function saveState(settings,records){
+  if(!db)return Promise.reject(new Error('저장 공간을 열 수 없어요'));
+  var snapshot=structuredClone({settings:settings,records:records});
+  var pending=writeQueue.then(function(){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction('data','readwrite');
+      tx.oncomplete=function(){resolve()};
+      tx.onabort=function(){reject(tx.error)};
+      tx.objectStore('data').put(snapshot,'current');
+    });
+  });
+  writeQueue=pending.catch(function(){});
+  return pending;
+}
+
+function sv(){
+  requestPersistence();
+  saveState(S,E).catch(function(){toast('기기에 저장하지 못했어요. 설정에서 백업 파일을 내보내 주세요.')});
+}
+
+async function loadState(){
+  S=readLegacy('tt_s',S);
+  E=readLegacy('tt_e',E);
+  db=await new Promise(function(resolve,reject){
+    var req=indexedDB.open('my-timetable:'+location.pathname.replace(/index\.html$/,''),1);
+    req.onupgradeneeded=function(){req.result.createObjectStore('data')};
+    req.onsuccess=function(){resolve(req.result)};
+    req.onerror=function(){reject(req.error)};
+  });
+  var saved=await new Promise(function(resolve,reject){
+    var req=db.transaction('data','readonly').objectStore('data').get('current');
+    req.onsuccess=function(){resolve(req.result)};
+    req.onerror=function(){reject(req.error)};
+  });
+  if(saved){S=saved.settings;E=saved.records}
+  else await saveState(S,E);
+}
+
+function exportBackup(){
+  var file=new Blob([JSON.stringify({app:'my-timetable',version:1,settings:S,records:E},null,2)],
+    {type:'application/json'});
+  var url=URL.createObjectURL(file),link=document.createElement('a');
+  link.href=url;
+  link.download='timetable-backup-'+key(new Date())+'.json';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(function(){URL.revokeObjectURL(url)},60000);
+}
+
+function readBackup(data){
+  var s=data?.settings,e=data?.records;
+  if(data?.app!=='my-timetable'||data.version!==1||
+    !s||!Number.isInteger(s.sh)||!Number.isInteger(s.eh)||s.sh<0||s.eh>24||
+    s.sh>=s.eh||![10,30,60].includes(s.u)||!Array.isArray(e)||
+    !e.every(function(x){
+      return x&&Number.isFinite(x.id)&&typeof x.d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.d)&&
+        typeof x.t==='string'&&Number.isInteger(x.s)&&x.s>=0&&
+        (x.e===null||(Number.isInteger(x.e)&&x.e>x.s));
+    }))throw new Error('백업 형식이 달라요');
+  return {settings:{sh:s.sh,eh:s.eh,u:s.u},records:e};
+}
+
+async function importBackup(file){
+  if(!file||restoring)return;
+  var backup;
+  try{backup=readBackup(JSON.parse(await file.text()))}
+  catch{ $('#backup-status')?.replaceChildren('백업 파일을 읽을 수 없어요. 이 앱에서 내보낸 파일을 선택해 주세요.');return }
+  if(!confirm('지금 기록과 설정을 백업 파일의 내용으로 바꿀까요?'))return;
+  restoring=true;
+  document.body.inert=true;
+  try{
+    await saveState(backup.settings,backup.records);
+    S=backup.settings;E=backup.records;prevSnap=null;
+    requestPersistence();
+    closeSheet();render();toast('백업을 복구했어요.');
+  }catch{
+    $('#backup-status')?.replaceChildren('복구 내용을 기기에 저장하지 못했어요.');
+  }finally{
+    restoring=false;
+    document.body.inert=false;
+  }
+}
+function $(s){return document.querySelector(s)}
+function key(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+function p2(n){return (n<10?'0':'')+n}
+function toD(k){var a=k.split('-');return new Date(+a[0],a[1]-1,+a[2],12)}
+function shift(k,n){var d=toD(k);d.setDate(d.getDate()+n);return key(d)}
+function nowMin(){var n=new Date();return n.getHours()*60+n.getMinutes()}
+function fmt(m){return p2(Math.floor(m/60)%24===0&&m>=1440?24:Math.floor(m/60))+':'+p2(m%60)}
+function colorOf(t){var h=0;for(var i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))%360;return 'hsl('+h+',70%,82%)'}
+function toast(m){$('#toast').textContent=m;clearTimeout(toast.t);toast.t=setTimeout(function(){$('#toast').textContent=''},4000)}
+
+function render(){
+  var days=['일','월','화','수','목','금','토'],d=toD(D);
+  $('#dl').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
+  var lo=S.sh*60,hi=S.eh*60,rows=(hi-lo)/S.u,h='';
+  for(var i=0;i<rows;i++)h+='<div class="r"><span class="t">'+fmt(lo+i*S.u)+'</span></div>';
+  h+='<div id="ev">';
+  var isT=D===key(new Date()),nm=nowMin();
+  E.forEach(function(e,idx){
+    if(e.d!==D)return;
+    var open=e.e==null,en=open?(isT?nm:hi):e.e;
+    if(open&&en<=e.s)en=e.s+10;
+    var cs=Math.max(e.s,lo),ce=Math.min(en,hi);
+    if(cs>=ce)return;
+    var top=(cs-lo)/S.u*RH,ht=Math.max((ce-cs)/S.u*RH-2,10);
+    h+='<div class="e" data-i="'+idx+'" style="top:'+top+'px;height:'+ht+'px;background:'+colorOf(e.t)+'"><b>'+esc(e.t)+'</b>'+(ht>34?'<small>'+fmt(e.s)+' ~ '+(open?'진행 중':fmt(e.e))+'</small>':'')+'</div>';
+  });
+  h+='</div>';
+  if(isT&&nm>=lo&&nm<=hi)h+='<div id="nowl" style="top:'+((nm-lo)/S.u*RH)+'px"></div>';
+  $('#grid').innerHTML=h;
+}
+function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+
+/* ---------- 입력 해석 ---------- */
+function resolve(h,m,mk,ref){
+  if(mk){
+    if(/오전|아침|새벽/.test(mk))h=h%12;
+    else if(mk==='밤'&&h===12)h=24;
+    else if(h<12)h+=12;
+    return h*60+m;
+  }
+  if(h>12)return h*60+m;
+  var a=(h%12)*60+m,p=a+720,lo=S.sh*60,hi=S.eh*60;
+  if(ref!=null){var c=[a,p].filter(function(x){return x>=ref});return c.length?c[0]:p}
+  var ok=function(x){return x>=lo&&x<=hi};
+  if(ok(a)&&ok(p))return Math.abs(a-nowMin())<=Math.abs(p-nowMin())?a:p;
+  return ok(a)?a:ok(p)?p:a;
+}
+function parse(txt){
+  var date=D;
+  if(/어제/.test(txt))date=shift(key(new Date()),-1);
+  else if(/내일/.test(txt))date=shift(key(new Date()),1);
+  else if(/오늘/.test(txt))date=key(new Date());
+  var re=/(오전|오후|아침|새벽|저녁|밤|낮)?\s*(\d{1,2})\s*(?:시(?!간)\s*(?:(반)|(\d{1,2})\s*분)?|:(\d{2}))/g,m,ts=[];
+  while((m=re.exec(txt))){
+    ts.push({mk:m[1],h:+m[2],m:m[3]?30:m[4]?+m[4]:m[5]?+m[5]:0});
+  }
+  var isEnd=/(끝|종료|마침|완료|그만)/.test(txt);
+  var title=txt.replace(re,' ').replace(/오늘|어제|내일|부터|까지/g,' ')
+    .replace(/(끝났어요|끝났어|끝났다|끝남|끝|종료|마침|완료|그만|시작)/g,' ')
+    .replace(/^\s*(에서|에)\s+/,'').replace(/\s+/g,' ').trim();
+  var times=[];
+  if(ts[0])times.push(resolve(ts[0].h,ts[0].m,ts[0].mk,null));
+  if(ts[1])times.push(resolve(ts[1].h,ts[1].m,ts[1].mk,times[0]));
+  return {date:date,times:times,isEnd:isEnd,title:title};
+}
+function submit(txt){
+  if(restoring)return;
+  txt=txt.trim();if(!txt)return;
+  var r=parse(txt),snap=JSON.stringify(E),msg='';
+  var nm=nowMin(),n=r.times.length;
+  if(r.isEnd&&n<2){
+    var t=n?r.times[0]:nm,cand=E.filter(function(e){return e.d===r.date&&e.e==null});
+    var f=cand.filter(function(e){return r.title&&(e.t===r.title||e.t.indexOf(r.title)>=0||r.title.indexOf(e.t)>=0)});
+    var tg=(f.length?f:cand).slice(-1)[0];
+    if(!tg){toast('끝낼 활동이 없어요. 먼저 시작을 입력해 주세요.');return}
+    if(t<=tg.s&&t+720>tg.s&&n)t+=720;
+    if(t<=tg.s){toast('끝나는 시간이 시작보다 빨라요. 시간을 다시 확인해 주세요.');return}
+    tg.e=t;msg=tg.t+' '+fmt(tg.s)+' ~ '+fmt(t)+' 기록 완료';
+  }else{
+    if(!r.title){toast('무슨 활동인지 알려 주세요. 예: 오전 7시 러닝');return}
+    var s,e=null;
+    if(n>=2){s=r.times[0];e=r.times[1];if(e<=s){toast('끝나는 시간이 시작보다 빨라요.');return}}
+    else if(n===1){s=r.times[0]}
+    else{s=nm}
+    if(e==null){ // 진행 중이던 활동이 있으면 새 활동 시작 시각에 자동 종료
+      E.forEach(function(o){if(o.d===r.date&&o.e==null&&s>o.s)o.e=s});
+    }
+    E.push({id:Date.now(),d:r.date,s:s,e:e,t:r.title});
+    msg=r.title+' '+fmt(s)+(e!=null?' ~ '+fmt(e)+' 기록 완료':' 부터 시작');
+  }
+  prevSnap=snap;D=r.date;sv();render();toast(msg);$('#inp').value='';
+}
+
+/* ---------- 이벤트 ---------- */
+$('#go').onclick=function(){submit($('#inp').value)};
+$('#inp').onkeydown=function(e){if(e.key==='Enter')submit(this.value)};
+$('#undo').onclick=function(){if(prevSnap==null){toast('되돌릴 내용이 없어요');return}E=JSON.parse(prevSnap);prevSnap=null;sv();render();toast('되돌렸어요')};
+$('#prev').onclick=function(){D=shift(D,-1);render()};
+$('#next').onclick=function(){D=shift(D,1);render()};
+$('#tod').onclick=function(){D=key(new Date());render();var w=$('#wrap'),n=nowMin()-S.sh*60;w.scrollTop=Math.max(0,n/S.u*RH-120)};
+$('#grid').onclick=function(ev){var t=ev.target.closest('.e');if(t)editSheet(+t.dataset.i)};
+$('#gear').onclick=settingsSheet;
+$('#sheet').onclick=function(e){if(e.target.id==='sheet')closeSheet()};
+function closeSheet(){$('#sheet').classList.remove('show')}
+function openSheet(h){$('#card').innerHTML=h;$('#sheet').classList.add('show')}
+
+function tv(m){return p2(Math.floor(m/60)%24)+':'+p2(m%60)}
+function fromTv(v){var a=v.split(':');return +a[0]*60+ +a[1]}
+function editSheet(i){
+  var e=E[i];if(!e)return;
+  openSheet('<h2>기록 수정</h2><div class="row"><span>내용</span><input id="et" value="'+esc(e.t).replace(/"/g,'&quot;')+'"></div>'+
+  '<div class="row"><span>시작</span><input type="time" id="es" value="'+tv(e.s)+'"></div>'+
+  '<div class="row"><span>끝</span><input type="time" id="ee" value="'+(e.e==null?'':tv(e.e))+'"></div>'+
+  '<div class="act"><button class="del" id="dd">삭제</button><button class="pri" id="sv">저장</button></div>');
+  $('#dd').onclick=function(){prevSnap=JSON.stringify(E);E.splice(i,1);sv();closeSheet();render()};
+  $('#sv').onclick=function(){
+    var t=$('#et').value.trim(),s=fromTv($('#es').value),ev=$('#ee').value;
+    if(!t||isNaN(s))return;
+    var en=ev?fromTv(ev):null;
+    if(en!=null&&en<=s){toast('끝나는 시간이 시작보다 빨라요');return}
+    prevSnap=JSON.stringify(E);e.t=t;e.s=s;e.e=en;sv();closeSheet();render()};
+}
+function settingsSheet(){
+  var o1='',o2='',i,unit=S.u;
+  for(i=0;i<24;i++)o1+='<option value="'+i+'"'+(i===S.sh?' selected':'')+'>'+p2(i)+':00</option>';
+  for(i=1;i<=24;i++)o2+='<option value="'+i+'"'+(i===S.eh?' selected':'')+'>'+p2(i)+':00</option>';
+  openSheet('<h2>설정</h2><div class="row"><span>하루 시작 시간</span><select id="ssh">'+o1+'</select></div>'+
+  '<div class="row"><span>하루 종료 시간</span><select id="seh">'+o2+'</select></div>'+
+  '<div class="row"><span>한 칸의 크기</span><div class="seg" id="su">'+[10,30,60].map(function(u){return '<button data-u="'+u+'" class="'+(u===S.u?'on':'')+'">'+(u===60?'1시간':u+'분')+'</button>'}).join('')+'</div></div>'+
+  '<div class="act"><button class="pri" id="sok">완료</button></div>'+
+  '<div class="act"><button id="backup-out">백업 파일 내보내기</button><button id="backup-in">백업 파일 가져오기</button></div>'+
+  '<input id="backup-file" type="file" accept=".json,application/json" hidden><p id="backup-status" role="status"></p>'+
+  '<div class="help"><b>이렇게 입력해 보세요</b><br>· 오전 7시 러닝 → 7시부터 러닝 시작<br>· 오전 8시 러닝 끝 → 7~8시로 완성<br>· 오늘 7시부터 9시까지 공부<br>· 시간 없이 “점심 먹기” → 지금 시각부터 시작<br>· “점심 끝” → 지금 시각에 종료<br>· 새 활동을 시작하면 진행 중이던 활동은 자동으로 끝나요<br>· 칸을 누르면 수정·삭제할 수 있어요</div>');
+  $('#backup-out').onclick=exportBackup;
+  $('#backup-in').onclick=function(){$('#backup-file').click()};
+  $('#backup-file').onchange=function(){
+    var file=this.files[0];
+    this.value='';
+    importBackup(file);
+  };
+  $('#su').onclick=function(e){var b=e.target.closest('button');if(!b)return;unit=+b.dataset.u;[].forEach.call(this.children,function(x){x.classList.toggle('on',x===b)})};
+  $('#sok').onclick=function(){
+    var a=+$('#ssh').value,b=+$('#seh').value;
+    if(b<=a){toast('종료 시간이 시작보다 늦어야 해요');return}
+    S.sh=a;S.eh=b;S.u=unit;sv();closeSheet();render()};
+}
+
+/* ---------- 음성 ---------- */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null;
+$('#mic').onclick=function(){
+  var b=this;
+  if(!SR){toast('이 브라우저는 음성 입력을 지원하지 않아요. 키보드의 마이크 버튼을 써 보세요.');return}
+  if(rec){rec.stop();return}
+  try{
+    rec=new SR();rec.lang='ko-KR';rec.interimResults=false;
+    rec.onresult=function(e){var t=e.results[0][0].transcript;$('#inp').value=t;submit(t)};
+    rec.onerror=function(){toast('음성 인식을 쓸 수 없어요. 키보드의 마이크 버튼을 써 보세요.')};
+    rec.onend=function(){rec=null;b.classList.remove('on')};
+    rec.start();b.classList.add('on');toast('듣고 있어요…');
+  }catch(e){rec=null;toast('음성 인식을 시작하지 못했어요.')}
+};
+
+async function start(){
+  var storageError=false;
+  try{await loadState()}
+  catch{storageError=true}
+  render();
+  $('#wrap').scrollTop=Math.max(0,(nowMin()-S.sh*60)/S.u*RH-120);
+  document.body.inert=false;
+  if(storageError)toast('기기 저장 공간을 확인해 주세요. 기존 백업 파일이 있으면 보관해 주세요.');
+  setInterval(function(){if(!$('#sheet').classList.contains('show'))render()},60000);
+  if('serviceWorker' in navigator && window.isSecureContext){
+    navigator.serviceWorker.register('./sw.js').catch(function(error){
+      console.error('오프라인 준비 실패',error);
+    });
+  }
+}
+start();
+</script>
+</body>
+</html>
